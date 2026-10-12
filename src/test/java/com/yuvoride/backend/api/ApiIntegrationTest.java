@@ -81,7 +81,38 @@ class ApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
                 .andExpect(jsonPath("$.data.refreshToken").isNotEmpty())
-                .andExpect(jsonPath("$.data.user.phone").value("+919999999999"));
+                .andExpect(jsonPath("$.data.user.phone").value("+919999999999"))
+                .andExpect(jsonPath("$.data.goToHome").value(true))
+                .andExpect(jsonPath("$.data.next").value("HOME"));
+    }
+
+    @Test
+    void driverFirstLoginCreatesStubAndAsksForKyc() throws Exception {
+        mockMvc.perform(post("/auth/driver/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"newdriver@example.com\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/auth/driver/verify-otp")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"newdriver@example.com\",\"otp\":\"123456\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").isNotEmpty())
+                .andExpect(jsonPath("$.goToHome").value(false))
+                .andExpect(jsonPath("$.next").value("REGISTER"))
+                .andExpect(jsonPath("$.kycStatus").value("PENDING"))
+                .andExpect(jsonPath("$.user.role").value("DRIVER"));
+    }
+
+    @Test
+    void adminUsernamePasswordLogin() throws Exception {
+        mockMvc.perform(post("/auth/admin/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"admin\",\"password\":\"Admin@12345\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").isNotEmpty())
+                .andExpect(jsonPath("$.goToHome").value(true))
+                .andExpect(jsonPath("$.user.role").value("ADMIN"));
     }
 
     @Test

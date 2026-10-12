@@ -10,6 +10,7 @@
     { "key": "accessToken", "value": "" },
     { "key": "refreshToken", "value": "" },
     { "key": "phone", "value": "+919999999999" },
+    { "key": "email", "value": "customer@example.com" },
     { "key": "otp", "value": "123456" },
     { "key": "vehicleTypeId", "value": "2" },
     { "key": "rideId", "value": "1" }
@@ -22,6 +23,66 @@
     {
       "name": "Auth",
       "item": [
+        {
+          "name": "App Login (email OTP)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\"\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/auth/customer/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "customer", "login"]
+            },
+            "description": "Same body as driver login. Phone is also accepted: { phone }."
+          }
+        },
+        {
+          "name": "App Verify OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  const access = json.token || json.accessToken;",
+                  "  if (access) pm.collectionVariables.set('accessToken', access);",
+                  "  if (json.refreshToken) pm.collectionVariables.set('refreshToken', json.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"otp\": \"{{otp}}\"\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/auth/customer/verify-otp",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "customer", "verify-otp"]
+            },
+            "description": "Unwrapped { token, goToHome, next }. Customer always next=HOME when active."
+          }
+        },
+        {
+          "name": "App Google Login",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"idToken\": \"GOOGLE_ID_TOKEN\"\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/auth/customer/google",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "customer", "google"]
+            }
+          }
+        },
         {
           "name": "Send OTP",
           "request": {

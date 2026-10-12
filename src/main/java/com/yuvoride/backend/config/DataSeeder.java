@@ -1,10 +1,12 @@
 package com.yuvoride.backend.config;
 
+import com.yuvoride.backend.entity.AdminAccount;
 import com.yuvoride.backend.entity.User;
 import com.yuvoride.backend.entity.VehicleType;
 import com.yuvoride.backend.enums.AuthProvider;
 import com.yuvoride.backend.enums.UserRole;
 import com.yuvoride.backend.enums.UserStatus;
+import com.yuvoride.backend.repository.AdminAccountRepository;
 import com.yuvoride.backend.repository.UserRepository;
 import com.yuvoride.backend.repository.VehicleTypeRepository;
 import com.yuvoride.backend.service.RoleProfileService;
@@ -12,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -24,13 +27,21 @@ public class DataSeeder implements CommandLineRunner {
 
     private final VehicleTypeRepository vehicleTypeRepository;
     private final UserRepository userRepository;
+    private final AdminAccountRepository adminAccountRepository;
     private final RoleProfileService roleProfileService;
+    private final PasswordEncoder passwordEncoder;
 
     @Value("${app.admin.phone:}")
     private String adminPhone;
 
     @Value("${app.admin.email:}")
     private String adminEmail;
+
+    @Value("${app.admin.username:}")
+    private String adminUsername;
+
+    @Value("${app.admin.password:}")
+    private String adminPassword;
 
     @Value("${app.admin.name:YuvoRide Admin}")
     private String adminName;
@@ -46,25 +57,41 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void seedAdmin() {
-        if (!StringUtils.hasText(adminPhone) && !StringUtils.hasText(adminEmail)) {
+        if (!StringUtils.hasText(adminUsername) && !StringUtils.hasText(adminEmail) && !StringUtils.hasText(adminPhone)) {
             return;
         }
-        if (StringUtils.hasText(adminPhone) && userRepository.findByPhone(adminPhone.trim()).isPresent()) {
+        User admin = null;
+        if (StringUtils.hasText(adminEmail)) {
+            admin = userRepository.findByEmail(adminEmail.trim().toLowerCase()).orElse(null);
+        }
+        if (admin == null && StringUtils.hasText(adminPhone)) {
+            admin = userRepository.findByPhone(adminPhone.trim()).orElse(null);
+        }
+        if (admin == null) {
+            admin = userRepository.save(User.builder()
+                    .name(adminName)
+                    .phone(StringUtils.hasText(adminPhone) ? adminPhone.trim() : null)
+                    .email(StringUtils.hasText(adminEmail) ? adminEmail.trim().toLowerCase() : null)
+                    .role(UserRole.ADMIN)
+                    .status(UserStatus.ACTIVE)
+                    .authProvider(StringUtils.hasText(adminPassword) ? AuthProvider.PASSWORD : AuthProvider.OTP)
+                    .build());
+            log.info("Seeded admin user userId={}", admin.getId());
+        }
+        if (admin.getRole() != UserRole.ADMIN) {
             return;
         }
-        if (StringUtils.hasText(adminEmail) && userRepository.findByEmail(adminEmail.trim().toLowerCase()).isPresent()) {
-            return;
+        if (StringUtils.hasText(adminPassword) && !StringUtils.hasText(admin.getPasswordHash())) {
+            admin.setPasswordHash(passwordEncoder.encode(adminPassword));
+            admin.setAuthProvider(AuthProvider.PASSWORD);
+            userRepository.save(admin);
         }
-        User admin = userRepository.save(User.builder()
-                .name(adminName)
-                .phone(StringUtils.hasText(adminPhone) ? adminPhone.trim() : null)
-                .email(StringUtils.hasText(adminEmail) ? adminEmail.trim().toLowerCase() : null)
-                .role(UserRole.ADMIN)
-                .status(UserStatus.ACTIVE)
-                .authProvider(AuthProvider.OTP)
-                .build());
         roleProfileService.ensure(admin);
-        log.info("Seeded admin account userId={}", admin.getId());
+        AdminAccount account = adminAccountRepository.findByUserId(admin.getId()).orElse(null);
+        if (account != null && StringUtils.hasText(adminUsername)) {
+            account.setUsername(adminUsername.trim());
+            adminAccountRepository.save(account);
+        }
     }
 
     private void seedVehicle(String name, String description, int capacity,

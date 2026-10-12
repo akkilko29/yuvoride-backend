@@ -3,13 +3,16 @@ package com.yuvoride.backend.service.impl;
 import com.yuvoride.backend.config.AppProperties;
 import com.yuvoride.backend.dto.auth.AuthResponse;
 import com.yuvoride.backend.dto.auth.TokenResponse;
+import com.yuvoride.backend.entity.AdminAccount;
+import com.yuvoride.backend.entity.Driver;
 import com.yuvoride.backend.entity.RefreshToken;
 import com.yuvoride.backend.entity.User;
 import com.yuvoride.backend.enums.AuthProvider;
 import com.yuvoride.backend.enums.UserRole;
 import com.yuvoride.backend.enums.UserStatus;
 import com.yuvoride.backend.exception.UnauthorizedException;
-import com.yuvoride.backend.mapper.UserMapper;
+import com.yuvoride.backend.mapper.AuthSessionMapper;
+import com.yuvoride.backend.repository.AdminAccountRepository;
 import com.yuvoride.backend.repository.RefreshTokenRepository;
 import com.yuvoride.backend.repository.UserRepository;
 import com.yuvoride.backend.security.JwtService;
@@ -17,14 +20,18 @@ import com.yuvoride.backend.service.AuthService;
 import com.yuvoride.backend.service.GoogleTokenVerifier;
 import com.yuvoride.backend.service.OtpService;
 import com.yuvoride.backend.service.RoleProfileService;
+import com.yuvoride.backend.util.AuthIdentity;
 import com.yuvoride.backend.util.HashUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.Instant;
+import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -34,40 +41,41 @@ public class AuthServiceImpl implements AuthService {
 
     private final OtpService otpService;
     private final UserRepository userRepository;
+    private final AdminAccountRepository adminAccountRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtService jwtService;
-    private final UserMapper userMapper;
+    private final AuthSessionMapper authSessionMapper;
     private final AppProperties properties;
     private final GoogleTokenVerifier googleTokenVerifier;
     private final RoleProfileService roleProfileService;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
-    public void sendOtp(String phone) {
-        otpService.sendOtp(phone);
+    public void sendOtp(String destination) {
+        otpService.sendOtp(destination);
     }
 
     @Override
-    public void resendOtp(String phone) {
-        otpService.sendOtp(phone);
-    }
-
-    @Override
-    @Transactional
-    public AuthResponse verifyOtp(String phone, String otp) {
-        otpService.verifyOrThrow(phone, otp);
-        User user = userRepository.findByPhone(phone).orElseGet(() -> createOtpUser(phone));
-        assertActive(user);
-        roleProfileService.ensure(user);
-        return issueAuth(user);
+    public void resendOtp(String destination) {
+        otpService.sendOtp(destination);
     }
 
     @Override
     @Transactional
-    public AuthResponse googleLogin(String idToken) {
+    public AuthResponse verifyOtp(String destination, String otp, UserRole role) {
+        otpService.verifyOrThrow(destination, otp);
+        return completeOtpOrCreate(destination, role, AuthProvider.OTP, null);
+    }
+
+    @Override
+    @Transactional
+    public AuthResponse googleLogin(String idToken, UserRole role) {
         GoogleTokenVerifier.GoogleProfile profile = googleTokenVerifier.verify(idToken);
-        User user = userRepository.findByGoogleSub(profile.subject())
-                .or(() -> userRepository.findByEmail(profile.email()))
-                .orElseGet(() -> createGoogleUser(profile));
+        Optional<User> existing = userRepository.findByGoogleSub(profile.subject())
+                .or(() -> userRepository.findByEmail(profile.email()));
+        boolean newUser = existing.isEmpty();
+        User user = existing.orElseGet(() -> createUser(profile.email(), null, role, AuthProvider.GOOGLE, profile));
+        AuthSessionMapper.assertRole(user, role);
         if (user.getGoogleSub() == null) {
             user.setGoogleSub(profile.subject());
         }
@@ -77,10 +85,32 @@ public class AuthServiceImpl implements AuthService {
         if (!StringUtils.hasText(user.getProfilePhoto()) && StringUtils.hasText(profile.picture())) {
             user.setProfilePhoto(profile.picture());
         }
+        if (user.getAuthProvider() == AuthProvider.OTP) {
+            user.setAuthProvider(AuthProvider.GOOGLE);
+        }
         userRepository.save(user);
+        return finishLogin(user, newUser);
+    }
+
+    @Override
+    @Transactional
+    public AuthResponse adminLogin(String username, String password) {
+        String key = username.trim();
+        AdminAccount admin = adminAccountRepository.findByUsernameIgnoreCase(key)
+                .or(() -> userRepository.findByEmail(key.toLowerCase(Locale.ROOT))
+                        .flatMap(user -> adminAccountRepository.findByUserId(user.getId())))
+                .orElseThrow(() -> new UnauthorizedException("Invalid username or password"));
+        User user = admin.getUser();
+        AuthSessionMapper.assertRole(user, UserRole.ADMIN);
         assertActive(user);
+        if (!StringUtils.hasText(user.getPasswordHash())
+                || !passwordEncoder.matches(password, user.getPasswordHash())) {
+            throw new UnauthorizedException("Invalid username or password");
+        }
         roleProfileService.ensure(user);
-        return issueAuth(user);
+        String access = jwtService.generateAccessToken(user);
+        String refresh = persistRefreshToken(user);
+        return authSessionMapper.admin(user, access, refresh);
     }
 
     @Override
@@ -131,16 +161,67 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public AuthResponse issueSession(User user) {
-        return issueAuth(user);
+    public AuthResponse issueSession(User user, boolean newUser) {
+        return finishLogin(user, newUser);
     }
 
-    private AuthResponse issueAuth(User user) {
-        return AuthResponse.builder()
-                .accessToken(jwtService.generateAccessToken(user))
-                .refreshToken(persistRefreshToken(user))
-                .user(userMapper.toResponse(user))
+    private AuthResponse completeOtpOrCreate(String destination, UserRole role, AuthProvider provider,
+                                             GoogleTokenVerifier.GoogleProfile profile) {
+        Optional<User> existing = findByDestination(destination);
+        boolean newUser = existing.isEmpty();
+        User user = existing.orElseGet(() -> {
+            if (AuthIdentity.isEmail(destination)) {
+                return createUser(destination, null, role, provider, profile);
+            }
+            return createUser(null, destination, role, provider, profile);
+        });
+        AuthSessionMapper.assertRole(user, role);
+        if (AuthIdentity.isEmail(destination) && !StringUtils.hasText(user.getEmail())) {
+            user.setEmail(destination);
+            userRepository.save(user);
+        }
+        if (!AuthIdentity.isEmail(destination) && !StringUtils.hasText(user.getPhone())) {
+            user.setPhone(destination);
+            userRepository.save(user);
+        }
+        return finishLogin(user, newUser);
+    }
+
+    private AuthResponse finishLogin(User user, boolean newUser) {
+        assertActive(user);
+        roleProfileService.ensure(user);
+        String access = jwtService.generateAccessToken(user);
+        String refresh = persistRefreshToken(user);
+        if (user.getRole() == UserRole.DRIVER) {
+            Driver driver = roleProfileService.ensureDriver(user);
+            return authSessionMapper.driver(user, driver, access, refresh, newUser);
+        }
+        if (user.getRole() == UserRole.ADMIN) {
+            return authSessionMapper.admin(user, access, refresh);
+        }
+        return authSessionMapper.customer(user, access, refresh, newUser);
+    }
+
+    private Optional<User> findByDestination(String destination) {
+        if (AuthIdentity.isEmail(destination)) {
+            return userRepository.findByEmail(destination);
+        }
+        return userRepository.findByPhone(destination);
+    }
+
+    private User createUser(String email, String phone, UserRole role, AuthProvider provider,
+                            GoogleTokenVerifier.GoogleProfile profile) {
+        User user = User.builder()
+                .email(email)
+                .phone(phone)
+                .name(profile != null ? profile.name() : null)
+                .profilePhoto(profile != null ? profile.picture() : null)
+                .googleSub(profile != null ? profile.subject() : null)
+                .role(role)
+                .status(UserStatus.ACTIVE)
+                .authProvider(provider)
                 .build();
+        return userRepository.save(user);
     }
 
     private String persistRefreshToken(User user) {
@@ -155,29 +236,6 @@ public class AuthServiceImpl implements AuthService {
                 .build();
         refreshTokenRepository.save(token);
         return raw;
-    }
-
-    private User createOtpUser(String phone) {
-        User user = User.builder()
-                .phone(phone)
-                .role(UserRole.CUSTOMER)
-                .status(UserStatus.ACTIVE)
-                .authProvider(AuthProvider.OTP)
-                .build();
-        return userRepository.save(user);
-    }
-
-    private User createGoogleUser(GoogleTokenVerifier.GoogleProfile profile) {
-        User user = User.builder()
-                .email(profile.email())
-                .name(profile.name())
-                .profilePhoto(profile.picture())
-                .googleSub(profile.subject())
-                .role(UserRole.CUSTOMER)
-                .status(UserStatus.ACTIVE)
-                .authProvider(AuthProvider.GOOGLE)
-                .build();
-        return userRepository.save(user);
     }
 
     private void assertActive(User user) {

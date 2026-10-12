@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a7c3e8d1-4b2f-4c91-9e5a-driver-app-2026",
     "name": "YuvoRide Driver API",
-    "description": "Driver app contract (unwrapped JSON on verify-otp).\n\nFlow: Register → Login (OTP to email) → Verify OTP (saves token) → Admin must set KYC VERIFIED + account ACTIVE → Go online → Update location → Open requests → Accept.\n\nRide statuses: REQUESTED → ACCEPTED → GOING_TO_PICKUP → ARRIVED → RIDE_STARTED → GOING_TO_DESTINATION → COMPLETED. Cancel = RIDE_CANCELLED.\n\nWebSocket: ws://localhost:8080/ws?token={{accessToken}}  subscribe /topic/rides/{rideId} and /queue/driver.",
+    "description": "Driver app contract (unwrapped JSON).\n\nFrontend: login → verify-otp/google → read goToHome + next.\nnext values: HOME | REGISTER | KYC | PENDING_REVIEW | SUSPENDED | REJECTED.\nIf not registered, verify-otp creates the driver stub. Then submit KYC (register or PATCH /driver/kyc). Admin must VERIFIED + ACTIVE before HOME.\n\nRide statuses: REQUESTED → ACCEPTED → GOING_TO_PICKUP → ARRIVED → RIDE_STARTED → GOING_TO_DESTINATION → COMPLETED.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -37,7 +37,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["auth", "driver", "register"]
             },
-            "description": "POST /auth/driver/register — creates DRIVER user + KYC PENDING. Local content:// or file:// URIs are stored as unverified refs."
+            "description": "Submit/update KYC. Returns the same login JSON (token, goToHome, next). Local content:// URIs are unverified refs."
           }
         },
         {
@@ -55,7 +55,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["auth", "driver", "login"]
             },
-            "description": "POST /auth/driver/login — OTP is emailed/logged. Never returned in the response."
+            "description": "Same body as customer login { email } or { phone }. Unregistered is OK."
           }
         },
         {
@@ -90,7 +90,38 @@
               "host": ["{{baseUrl}}"],
               "path": ["auth", "driver", "verify-otp"]
             },
-            "description": "POST /auth/driver/verify-otp — body { token, refreshToken, user } (not wrapped in ApiResponse)."
+            "description": "Same shape as customer verify. Route with goToHome and next (HOME/REGISTER/KYC/PENDING_REVIEW/SUSPENDED/REJECTED)."
+          }
+        },
+        {
+          "name": "Google Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  const access = json.token || json.accessToken;",
+                  "  if (access) pm.collectionVariables.set('accessToken', access);",
+                  "  if (json.refreshToken) pm.collectionVariables.set('refreshToken', json.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"idToken\": \"GOOGLE_ID_TOKEN\"\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/auth/driver/google",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "driver", "google"]
+            },
+            "description": "Same response as verify-otp."
           }
         },
         {

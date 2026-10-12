@@ -35,6 +35,9 @@ public class AdminAccount extends Auditable {
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 
+    @Column(unique = true, length = 80)
+    private String username;
+
     @Column(length = 100)
     private String displayName;
 

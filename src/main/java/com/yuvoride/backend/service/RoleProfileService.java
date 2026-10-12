@@ -6,5 +6,7 @@ import com.yuvoride.backend.entity.User;
 public interface RoleProfileService {
     void ensure(User user);
 
+    Driver ensureDriver(User user);
+
     void ensureDriverKyc(Driver driver);
 }

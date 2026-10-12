@@ -17,25 +17,10 @@
   },
   "item": [
     {
-      "name": "Auth (customer OTP as admin user)",
+      "name": "Auth",
       "item": [
         {
-          "name": "Send OTP",
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"+910000000001\"\n}" },
-            "url": {
-              "raw": "{{baseUrl}}/v1/auth/otp/send",
-              "host": ["{{baseUrl}}"],
-              "path": ["v1", "auth", "otp", "send"]
-            },
-            "description": "Only works if this phone belongs to a ROLE_ADMIN user in the database."
-          }
-        },
-        {
-          "name": "Verify OTP",
+          "name": "Username password login",
           "event": [
             {
               "listen": "test",
@@ -44,10 +29,9 @@
                 "exec": [
                   "if (pm.response.code === 200) {",
                   "  const json = pm.response.json();",
-                  "  if (json.data && json.data.accessToken) {",
-                  "    pm.collectionVariables.set('accessToken', json.data.accessToken);",
-                  "    pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
-                  "  }",
+                  "  const access = json.token || json.accessToken;",
+                  "  if (access) pm.collectionVariables.set('accessToken', access);",
+                  "  if (json.refreshToken) pm.collectionVariables.set('refreshToken', json.refreshToken);",
                   "}"
                 ]
               }
@@ -57,12 +41,13 @@
             "auth": { "type": "noauth" },
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"+910000000001\",\n  \"otp\": \"123456\"\n}" },
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"change-me-admin-password\"\n}" },
             "url": {
-              "raw": "{{baseUrl}}/v1/auth/otp/verify",
+              "raw": "{{baseUrl}}/auth/admin/login",
               "host": ["{{baseUrl}}"],
-              "path": ["v1", "auth", "otp", "verify"]
-            }
+              "path": ["auth", "admin", "login"]
+            },
+            "description": "Set ADMIN_USERNAME and ADMIN_PASSWORD in env. Username or email works."
           }
         }
       ]

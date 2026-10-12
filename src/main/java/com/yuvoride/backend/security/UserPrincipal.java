@@ -19,6 +19,7 @@ public class UserPrincipal implements UserDetails {
     private final String email;
     private final UserRole role;
     private final UserStatus status;
+    private final String passwordHash;
 
     public UserPrincipal(User user) {
         this.id = user.getId();
@@ -26,6 +27,7 @@ public class UserPrincipal implements UserDetails {
         this.email = user.getEmail();
         this.role = user.getRole();
         this.status = user.getStatus();
+        this.passwordHash = user.getPasswordHash();
     }
 
     @Override
@@ -35,7 +37,7 @@ public class UserPrincipal implements UserDetails {
 
     @Override
     public String getPassword() {
-        return "";
+        return passwordHash != null ? passwordHash : "";
     }
 
     @Override

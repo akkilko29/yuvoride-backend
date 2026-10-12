@@ -61,6 +61,9 @@ public class User extends Auditable {
     @Column(nullable = false, length = 20)
     private AuthProvider authProvider;
 
+    @Column(length = 100)
+    private String passwordHash;
+
     @Column(unique = true, length = 255)
     private String googleSub;
 }

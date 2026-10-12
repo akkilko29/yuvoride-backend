@@ -8,6 +8,7 @@ import com.yuvoride.backend.dto.auth.SendOtpRequest;
 import com.yuvoride.backend.dto.auth.TokenResponse;
 import com.yuvoride.backend.dto.auth.VerifyOtpRequest;
 import com.yuvoride.backend.dto.common.ApiResponse;
+import com.yuvoride.backend.enums.UserRole;
 import com.yuvoride.backend.security.CurrentUser;
 import com.yuvoride.backend.security.UserPrincipal;
 import com.yuvoride.backend.service.AuthService;
@@ -32,29 +33,31 @@ public class AuthController {
     }
 
     @PostMapping("/otp/send")
-    @Operation(summary = "Send OTP to phone")
+    @Operation(summary = "Send OTP to phone or email")
     public ResponseEntity<ApiResponse<Void>> sendOtp(@Valid @RequestBody SendOtpRequest request) {
-        authService.sendOtp(request.getPhone());
+        authService.sendOtp(request.destination());
         return ResponseEntity.ok(ApiResponse.ok("OTP sent successfully"));
     }
 
     @PostMapping("/otp/verify")
-    @Operation(summary = "Verify OTP and login")
+    @Operation(summary = "Verify OTP and login as customer")
     public ResponseEntity<ApiResponse<AuthResponse>> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok("Login successful", authService.verifyOtp(request.getPhone(), request.getOtp())));
+        return ResponseEntity.ok(ApiResponse.ok("Login successful",
+                authService.verifyOtp(request.destination(), request.getOtp(), UserRole.CUSTOMER)));
     }
 
     @PostMapping("/otp/resend")
     @Operation(summary = "Resend OTP")
     public ResponseEntity<ApiResponse<Void>> resendOtp(@Valid @RequestBody SendOtpRequest request) {
-        authService.resendOtp(request.getPhone());
+        authService.resendOtp(request.destination());
         return ResponseEntity.ok(ApiResponse.ok("OTP sent successfully"));
     }
 
     @PostMapping("/google")
-    @Operation(summary = "Login with Google ID token")
+    @Operation(summary = "Customer Google login")
     public ResponseEntity<ApiResponse<AuthResponse>> google(@Valid @RequestBody GoogleLoginRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok("Login successful", authService.googleLogin(request.getIdToken())));
+        return ResponseEntity.ok(ApiResponse.ok("Login successful",
+                authService.googleLogin(request.getIdToken(), UserRole.CUSTOMER)));
     }
 
     @PostMapping("/refresh")

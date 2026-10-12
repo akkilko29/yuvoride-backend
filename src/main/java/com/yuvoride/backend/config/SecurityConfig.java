@@ -29,6 +29,8 @@ public class SecurityConfig {
             "/v1/auth/refresh",
             "/v1/auth/logout",
             "/auth/driver/**",
+            "/auth/customer/**",
+            "/auth/admin/login",
             "/auth/refresh",
             "/auth/logout",
             "/ws/**",

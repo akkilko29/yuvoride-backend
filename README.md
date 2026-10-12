@@ -42,14 +42,15 @@ Tests use an in-memory H2 database (`test` profile).
 
 ## Postman
 
-Import these collections separately (File → Import):
+Re-import these files in Postman (File → Import). If you already imported an older copy, delete it first or choose Replace.
 
-- [postman/YuvoRide-Customer.postman_collection.json](postman/YuvoRide-Customer.postman_collection.json)
-- [postman/YuvoRide-Driver.postman_collection.json](postman/YuvoRide-Driver.postman_collection.json)
+- [postman/YuvoRide-Customer.postman_collection.json](postman/YuvoRide-Customer.postman_collection.json) — `/v1/auth`, `/v1/users`, `/v1/vehicles`, `/v1/rides`
+- [postman/YuvoRide-Driver.postman_collection.json](postman/YuvoRide-Driver.postman_collection.json) — `/auth/driver/*`, `/driver/*`, `/auth/refresh`, `/auth/logout`, plus legacy `/v1/drivers` and `/v1/rides/{id}/enroute|arrive|start|complete`
+- [postman/YuvoRide-Admin.postman_collection.json](postman/YuvoRide-Admin.postman_collection.json) — `/v1/admin/**` (`ROLE_ADMIN`)
 
-Set `baseUrl` (default `http://localhost:8080`). After **Verify OTP**, `accessToken` and `refreshToken` are stored on the collection. After **Create Ride**, `rideId` is stored.
+Set `baseUrl` (default `http://localhost:8080`).
 
-Driver `/v1/drivers/**` endpoints require a user with role `DRIVER` and a `drivers` profile row. OTP signup creates `CUSTOMER` by default.
+Driver login is email OTP on `POST /auth/driver/login` then `POST /auth/driver/verify-otp` (saves `token` as `accessToken`). Going online requires admin KYC `VERIFIED` and account `ACTIVE`.
 
 ## Required environment variables
 

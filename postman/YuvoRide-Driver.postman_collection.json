@@ -1,7 +1,8 @@
 {
   "info": {
+    "_postman_id": "a7c3e8d1-4b2f-4c91-9e5a-driver-app-2026",
     "name": "YuvoRide Driver API",
-    "description": "Driver app contract. Register → login OTP → verify (saves token) → go online → location → accept rides.\nDriver APIs require ROLE_DRIVER. KYC VERIFIED + ACTIVE is required before going online.",
+    "description": "Driver app contract (unwrapped JSON on verify-otp).\n\nFlow: Register → Login (OTP to email) → Verify OTP (saves token) → Admin must set KYC VERIFIED + account ACTIVE → Go online → Update location → Open requests → Accept.\n\nRide statuses: REQUESTED → ACCEPTED → GOING_TO_PICKUP → ARRIVED → RIDE_STARTED → GOING_TO_DESTINATION → COMPLETED. Cancel = RIDE_CANCELLED.\n\nWebSocket: ws://localhost:8080/ws?token={{accessToken}}  subscribe /topic/rides/{rideId} and /queue/driver.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -31,8 +32,12 @@
               "mode": "raw",
               "raw": "{\n  \"name\": \"Ravi Kumar\",\n  \"dob\": \"1995-01-15\",\n  \"phone\": \"{{phone}}\",\n  \"email\": \"{{email}}\",\n  \"address\": \"Patna, Bihar\",\n  \"photoUri\": \"content://photo\",\n  \"identityType\": \"AADHAAR\",\n  \"identityNumber\": \"XXXX-XXXX-1234\",\n  \"identityUri\": \"content://id\",\n  \"vehicleType\": \"Sedan\",\n  \"vehicleNumber\": \"BR01AB1234\",\n  \"rcNumber\": \"RC123\",\n  \"rcUri\": \"content://rc\",\n  \"licenseNumber\": \"DL123456\",\n  \"licenseUri\": \"content://license\"\n}"
             },
-            "url": "{{baseUrl}}/auth/driver/register",
-            "description": "Creates DRIVER user + KYC PENDING profile. Local URIs are stored as unverified refs, not trusted documents."
+            "url": {
+              "raw": "{{baseUrl}}/auth/driver/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "driver", "register"]
+            },
+            "description": "POST /auth/driver/register — creates DRIVER user + KYC PENDING. Local content:// or file:// URIs are stored as unverified refs."
           }
         },
         {
@@ -45,7 +50,12 @@
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{email}}\",\n  \"role\": \"driver\"\n}"
             },
-            "url": "{{baseUrl}}/auth/driver/login"
+            "url": {
+              "raw": "{{baseUrl}}/auth/driver/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "driver", "login"]
+            },
+            "description": "POST /auth/driver/login — OTP is emailed/logged. Never returned in the response."
           }
         },
         {
@@ -58,8 +68,10 @@
                 "exec": [
                   "if (pm.response.code === 200) {",
                   "  const json = pm.response.json();",
-                  "  if (json.token) pm.collectionVariables.set('accessToken', json.token);",
-                  "  if (json.refreshToken) pm.collectionVariables.set('refreshToken', json.refreshToken);",
+                  "  const data = json.data || json;",
+                  "  const access = data.token || data.accessToken;",
+                  "  if (access) pm.collectionVariables.set('accessToken', access);",
+                  "  if (data.refreshToken) pm.collectionVariables.set('refreshToken', data.refreshToken);",
                   "}"
                 ]
               }
@@ -73,8 +85,12 @@
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{email}}\",\n  \"otp\": \"{{otp}}\",\n  \"role\": \"driver\"\n}"
             },
-            "url": "{{baseUrl}}/auth/driver/verify-otp",
-            "description": "Returns { token, refreshToken, user } without the v1 ApiResponse wrapper."
+            "url": {
+              "raw": "{{baseUrl}}/auth/driver/verify-otp",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "driver", "verify-otp"]
+            },
+            "description": "POST /auth/driver/verify-otp — body { token, refreshToken, user } (not wrapped in ApiResponse)."
           }
         },
         {
@@ -87,7 +103,11 @@
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{email}}\",\n  \"role\": \"driver\"\n}"
             },
-            "url": "{{baseUrl}}/auth/driver/forgot-password"
+            "url": {
+              "raw": "{{baseUrl}}/auth/driver/forgot-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "driver", "forgot-password"]
+            }
           }
         },
         {
@@ -100,9 +120,10 @@
                 "exec": [
                   "if (pm.response.code === 200) {",
                   "  const json = pm.response.json();",
-                  "  const access = json.accessToken || json.token;",
+                  "  const data = json.data || json;",
+                  "  const access = data.accessToken || data.token;",
                   "  if (access) pm.collectionVariables.set('accessToken', access);",
-                  "  if (json.refreshToken) pm.collectionVariables.set('refreshToken', json.refreshToken);",
+                  "  if (data.refreshToken) pm.collectionVariables.set('refreshToken', data.refreshToken);",
                   "}"
                 ]
               }
@@ -116,7 +137,12 @@
               "mode": "raw",
               "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
             },
-            "url": "{{baseUrl}}/auth/refresh"
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "refresh"]
+            },
+            "description": "POST /auth/refresh — unwrapped TokenResponse { accessToken, token, refreshToken }."
           }
         },
         {
@@ -128,7 +154,11 @@
               "mode": "raw",
               "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
             },
-            "url": "{{baseUrl}}/auth/logout"
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            }
           }
         }
       ]
@@ -138,7 +168,14 @@
       "item": [
         {
           "name": "GET me",
-          "request": { "method": "GET", "url": "{{baseUrl}}/driver/me" }
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/driver/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["driver", "me"]
+            }
+          }
         },
         {
           "name": "PATCH me",
@@ -147,9 +184,13 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Ravi Kumar\",\n  \"phone\": \"{{phone}}\",\n  \"address\": \"Patna\"\n}"
+              "raw": "{\n  \"name\": \"Ravi Kumar\",\n  \"phone\": \"{{phone}}\",\n  \"address\": \"Patna\",\n  \"vehicleNumber\": \"BR01AB1234\"\n}"
             },
-            "url": "{{baseUrl}}/driver/me"
+            "url": {
+              "raw": "{{baseUrl}}/driver/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["driver", "me"]
+            }
           }
         },
         {
@@ -158,8 +199,12 @@
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\n  \"online\": true\n}" },
-            "url": "{{baseUrl}}/driver/availability",
-            "description": "Requires ACTIVE + KYC VERIFIED (admin must approve KYC first)."
+            "url": {
+              "raw": "{{baseUrl}}/driver/availability",
+              "host": ["{{baseUrl}}"],
+              "path": ["driver", "availability"]
+            },
+            "description": "Requires accountStatus ACTIVE and kycStatus VERIFIED."
           }
         },
         {
@@ -168,7 +213,11 @@
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\n  \"online\": false\n}" },
-            "url": "{{baseUrl}}/driver/availability"
+            "url": {
+              "raw": "{{baseUrl}}/driver/availability",
+              "host": ["{{baseUrl}}"],
+              "path": ["driver", "availability"]
+            }
           }
         },
         {
@@ -180,7 +229,12 @@
               "mode": "raw",
               "raw": "{\n  \"lat\": 25.5941,\n  \"lng\": 85.1376,\n  \"accuracy\": 10,\n  \"heading\": 90,\n  \"speed\": 10\n}"
             },
-            "url": "{{baseUrl}}/driver/location"
+            "url": {
+              "raw": "{{baseUrl}}/driver/location",
+              "host": ["{{baseUrl}}"],
+              "path": ["driver", "location"]
+            },
+            "description": "Accepts lat/lng or latitude/longitude."
           }
         }
       ]
@@ -190,22 +244,51 @@
       "item": [
         {
           "name": "Open requests",
-          "request": { "method": "GET", "url": "{{baseUrl}}/driver/rides/requests" }
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/driver/rides/requests",
+              "host": ["{{baseUrl}}"],
+              "path": ["driver", "rides", "requests"]
+            }
+          }
         },
         {
           "name": "Active ride",
-          "request": { "method": "GET", "url": "{{baseUrl}}/driver/rides/active" }
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/driver/rides/active",
+              "host": ["{{baseUrl}}"],
+              "path": ["driver", "rides", "active"]
+            }
+          }
         },
         {
           "name": "History",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/driver/rides/history?page=0&size=20"
+            "url": {
+              "raw": "{{baseUrl}}/driver/rides/history?page=0&size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["driver", "rides", "history"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            }
           }
         },
         {
           "name": "Get ride",
-          "request": { "method": "GET", "url": "{{baseUrl}}/driver/rides/{{rideId}}" }
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/driver/rides/{{rideId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["driver", "rides", "{{rideId}}"]
+            }
+          }
         },
         {
           "name": "Accept",
@@ -224,11 +307,26 @@
               }
             }
           ],
-          "request": { "method": "POST", "url": "{{baseUrl}}/driver/rides/{{rideId}}/accept" }
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/driver/rides/{{rideId}}/accept",
+              "host": ["{{baseUrl}}"],
+              "path": ["driver", "rides", "{{rideId}}", "accept"]
+            },
+            "description": "Pessimistic lock. 409 RIDE_ALREADY_TAKEN if another driver accepted first."
+          }
         },
         {
           "name": "Reject",
-          "request": { "method": "POST", "url": "{{baseUrl}}/driver/rides/{{rideId}}/reject" }
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/driver/rides/{{rideId}}/reject",
+              "host": ["{{baseUrl}}"],
+              "path": ["driver", "rides", "{{rideId}}", "reject"]
+            }
+          }
         },
         {
           "name": "Status GOING_TO_PICKUP",
@@ -236,7 +334,11 @@
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\n  \"status\": \"GOING_TO_PICKUP\"\n}" },
-            "url": "{{baseUrl}}/driver/rides/{{rideId}}/status"
+            "url": {
+              "raw": "{{baseUrl}}/driver/rides/{{rideId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["driver", "rides", "{{rideId}}", "status"]
+            }
           }
         },
         {
@@ -245,12 +347,23 @@
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\n  \"status\": \"ARRIVED\"\n}" },
-            "url": "{{baseUrl}}/driver/rides/{{rideId}}/status"
+            "url": {
+              "raw": "{{baseUrl}}/driver/rides/{{rideId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["driver", "rides", "{{rideId}}", "status"]
+            }
           }
         },
         {
           "name": "Start",
-          "request": { "method": "POST", "url": "{{baseUrl}}/driver/rides/{{rideId}}/start" }
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/driver/rides/{{rideId}}/start",
+              "host": ["{{baseUrl}}"],
+              "path": ["driver", "rides", "{{rideId}}", "start"]
+            }
+          }
         },
         {
           "name": "Status GOING_TO_DESTINATION",
@@ -258,12 +371,23 @@
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\n  \"status\": \"GOING_TO_DESTINATION\"\n}" },
-            "url": "{{baseUrl}}/driver/rides/{{rideId}}/status"
+            "url": {
+              "raw": "{{baseUrl}}/driver/rides/{{rideId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["driver", "rides", "{{rideId}}", "status"]
+            }
           }
         },
         {
           "name": "Complete",
-          "request": { "method": "POST", "url": "{{baseUrl}}/driver/rides/{{rideId}}/complete" }
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/driver/rides/{{rideId}}/complete",
+              "host": ["{{baseUrl}}"],
+              "path": ["driver", "rides", "{{rideId}}", "complete"]
+            }
+          }
         },
         {
           "name": "Cancel",
@@ -271,7 +395,11 @@
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Customer not reachable\"\n}" },
-            "url": "{{baseUrl}}/driver/rides/{{rideId}}/cancel"
+            "url": {
+              "raw": "{{baseUrl}}/driver/rides/{{rideId}}/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["driver", "rides", "{{rideId}}", "cancel"]
+            }
           }
         }
       ]
@@ -281,7 +409,109 @@
       "item": [
         {
           "name": "GET earnings",
-          "request": { "method": "GET", "url": "{{baseUrl}}/driver/earnings" }
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/driver/earnings",
+              "host": ["{{baseUrl}}"],
+              "path": ["driver", "earnings"]
+            },
+            "description": "Server-side totals from completed rides. Client amounts are ignored."
+          }
+        }
+      ]
+    },
+    {
+      "name": "v1 Drivers (legacy)",
+      "item": [
+        {
+          "name": "GET /v1/drivers/me",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/drivers/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "drivers", "me"]
+            }
+          }
+        },
+        {
+          "name": "PUT /v1/drivers/me/location",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"latitude\": 25.5941,\n  \"longitude\": 85.1376\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/drivers/me/location",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "drivers", "me", "location"]
+            }
+          }
+        },
+        {
+          "name": "PATCH /v1/drivers/me/availability",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"online\": true\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/v1/drivers/me/availability",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "drivers", "me", "availability"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "v1 Ride actions (legacy)",
+      "item": [
+        {
+          "name": "Enroute",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/v1/rides/{{rideId}}/enroute",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "rides", "{{rideId}}", "enroute"]
+            }
+          }
+        },
+        {
+          "name": "Arrive",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/v1/rides/{{rideId}}/arrive",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "rides", "{{rideId}}", "arrive"]
+            }
+          }
+        },
+        {
+          "name": "Start",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/v1/rides/{{rideId}}/start",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "rides", "{{rideId}}", "start"]
+            }
+          }
+        },
+        {
+          "name": "Complete",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/v1/rides/{{rideId}}/complete",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "rides", "{{rideId}}", "complete"]
+            }
+          }
         }
       ]
     }

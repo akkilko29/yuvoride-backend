@@ -1,0 +1,192 @@
+{
+  "info": {
+    "_postman_id": "b8d4f9e2-5c30-4d82-af6b-admin-api-2026",
+    "name": "YuvoRide Admin API",
+    "description": "Admin APIs require ROLE_ADMIN. Use a JWT from an ADMIN user.\n\nKYC body uses kycStatus (PENDING | VERIFIED | REJECTED).\nAccount body uses accountStatus (INCOMPLETE | PENDING | ACTIVE | SUSPENDED | REJECTED).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "driverId", "value": "1" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Auth (customer OTP as admin user)",
+      "item": [
+        {
+          "name": "Send OTP",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"+910000000001\"\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/v1/auth/otp/send",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "auth", "otp", "send"]
+            },
+            "description": "Only works if this phone belongs to a ROLE_ADMIN user in the database."
+          }
+        },
+        {
+          "name": "Verify OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.data && json.data.accessToken) {",
+                  "    pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "    pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"+910000000001\",\n  \"otp\": \"123456\"\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/v1/auth/otp/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "auth", "otp", "verify"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Drivers",
+      "item": [
+        {
+          "name": "List drivers",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/admin/drivers",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "admin", "drivers"]
+            }
+          }
+        },
+        {
+          "name": "Get driver",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/admin/drivers/{{driverId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "admin", "drivers", "{{driverId}}"]
+            }
+          }
+        },
+        {
+          "name": "Approve KYC",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"kycStatus\": \"VERIFIED\",\n  \"reason\": null\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/v1/admin/drivers/{{driverId}}/kyc",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "admin", "drivers", "{{driverId}}", "kyc"]
+            },
+            "description": "Field is kycStatus, not status."
+          }
+        },
+        {
+          "name": "Reject KYC",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"kycStatus\": \"REJECTED\",\n  \"reason\": \"Unclear identity photo\"\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/v1/admin/drivers/{{driverId}}/kyc",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "admin", "drivers", "{{driverId}}", "kyc"]
+            }
+          }
+        },
+        {
+          "name": "Set driver ACTIVE",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"accountStatus\": \"ACTIVE\"\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/v1/admin/drivers/{{driverId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "admin", "drivers", "{{driverId}}", "status"]
+            },
+            "description": "Field is accountStatus, not status."
+          }
+        },
+        {
+          "name": "Suspend driver",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"accountStatus\": \"SUSPENDED\"\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/v1/admin/drivers/{{driverId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "admin", "drivers", "{{driverId}}", "status"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "List users",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/admin/users?page=0&size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "admin", "users"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Rides",
+      "item": [
+        {
+          "name": "List rides",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/admin/rides?page=0&size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "admin", "rides"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

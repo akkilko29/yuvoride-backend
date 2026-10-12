@@ -1,13 +1,14 @@
 {
   "info": {
     "name": "YuvoRide Driver API",
-    "description": "Driver-facing YuvoRide REST APIs for the driver app. The user must have role DRIVER and a driver profile. After Verify OTP, tokens are saved automatically.",
+    "description": "Driver app contract. Register → login OTP → verify (saves token) → go online → location → accept rides.\nDriver APIs require ROLE_DRIVER. KYC VERIFIED + ACTIVE is required before going online.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:8080" },
     { "key": "accessToken", "value": "" },
     { "key": "refreshToken", "value": "" },
+    { "key": "email", "value": "driver@example.com" },
     { "key": "phone", "value": "+918888888888" },
     { "key": "otp", "value": "123456" },
     { "key": "rideId", "value": "1" }
@@ -21,16 +22,30 @@
       "name": "Auth",
       "item": [
         {
-          "name": "Send OTP",
+          "name": "Register",
           "request": {
             "auth": { "type": "noauth" },
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"phone\": \"{{phone}}\"\n}"
+              "raw": "{\n  \"name\": \"Ravi Kumar\",\n  \"dob\": \"1995-01-15\",\n  \"phone\": \"{{phone}}\",\n  \"email\": \"{{email}}\",\n  \"address\": \"Patna, Bihar\",\n  \"photoUri\": \"content://photo\",\n  \"identityType\": \"AADHAAR\",\n  \"identityNumber\": \"XXXX-XXXX-1234\",\n  \"identityUri\": \"content://id\",\n  \"vehicleType\": \"Sedan\",\n  \"vehicleNumber\": \"BR01AB1234\",\n  \"rcNumber\": \"RC123\",\n  \"rcUri\": \"content://rc\",\n  \"licenseNumber\": \"DL123456\",\n  \"licenseUri\": \"content://license\"\n}"
             },
-            "url": "{{baseUrl}}/v1/auth/otp/send"
+            "url": "{{baseUrl}}/auth/driver/register",
+            "description": "Creates DRIVER user + KYC PENDING profile. Local URIs are stored as unverified refs, not trusted documents."
+          }
+        },
+        {
+          "name": "Login (send OTP)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"role\": \"driver\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/driver/login"
           }
         },
         {
@@ -43,10 +58,8 @@
                 "exec": [
                   "if (pm.response.code === 200) {",
                   "  const json = pm.response.json();",
-                  "  if (json.data && json.data.accessToken) {",
-                  "    pm.collectionVariables.set('accessToken', json.data.accessToken);",
-                  "    pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
-                  "  }",
+                  "  if (json.token) pm.collectionVariables.set('accessToken', json.token);",
+                  "  if (json.refreshToken) pm.collectionVariables.set('refreshToken', json.refreshToken);",
                   "}"
                 ]
               }
@@ -58,27 +71,27 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"otp\": \"{{otp}}\"\n}"
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"otp\": \"{{otp}}\",\n  \"role\": \"driver\"\n}"
             },
-            "url": "{{baseUrl}}/v1/auth/otp/verify",
-            "description": "OTP login creates a CUSTOMER by default. For driver APIs, the user must already have role DRIVER and a row in drivers."
+            "url": "{{baseUrl}}/auth/driver/verify-otp",
+            "description": "Returns { token, refreshToken, user } without the v1 ApiResponse wrapper."
           }
         },
         {
-          "name": "Resend OTP",
+          "name": "Forgot password",
           "request": {
             "auth": { "type": "noauth" },
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"phone\": \"{{phone}}\"\n}"
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"role\": \"driver\"\n}"
             },
-            "url": "{{baseUrl}}/v1/auth/otp/resend"
+            "url": "{{baseUrl}}/auth/driver/forgot-password"
           }
         },
         {
-          "name": "Google Login",
+          "name": "Refresh token",
           "event": [
             {
               "listen": "test",
@@ -87,40 +100,9 @@
                 "exec": [
                   "if (pm.response.code === 200) {",
                   "  const json = pm.response.json();",
-                  "  if (json.data && json.data.accessToken) {",
-                  "    pm.collectionVariables.set('accessToken', json.data.accessToken);",
-                  "    pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
-                  "  }",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"idToken\": \"GOOGLE_ID_TOKEN\"\n}"
-            },
-            "url": "{{baseUrl}}/v1/auth/google"
-          }
-        },
-        {
-          "name": "Refresh Token",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.response.code === 200) {",
-                  "  const json = pm.response.json();",
-                  "  if (json.data && json.data.accessToken) {",
-                  "    pm.collectionVariables.set('accessToken', json.data.accessToken);",
-                  "    pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
-                  "  }",
+                  "  const access = json.accessToken || json.token;",
+                  "  if (access) pm.collectionVariables.set('accessToken', access);",
+                  "  if (json.refreshToken) pm.collectionVariables.set('refreshToken', json.refreshToken);",
                   "}"
                 ]
               }
@@ -134,7 +116,7 @@
               "mode": "raw",
               "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
             },
-            "url": "{{baseUrl}}/v1/auth/refresh"
+            "url": "{{baseUrl}}/auth/refresh"
           }
         },
         {
@@ -146,7 +128,7 @@
               "mode": "raw",
               "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
             },
-            "url": "{{baseUrl}}/v1/auth/logout"
+            "url": "{{baseUrl}}/auth/logout"
           }
         }
       ]
@@ -155,167 +137,151 @@
       "name": "Profile",
       "item": [
         {
-          "name": "Get Current User",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/v1/users/me"
-          }
+          "name": "GET me",
+          "request": { "method": "GET", "url": "{{baseUrl}}/driver/me" }
         },
         {
-          "name": "Update Current User",
+          "name": "PATCH me",
           "request": {
             "method": "PATCH",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Driver Name\",\n  \"email\": \"driver@example.com\"\n}"
+              "raw": "{\n  \"name\": \"Ravi Kumar\",\n  \"phone\": \"{{phone}}\",\n  \"address\": \"Patna\"\n}"
             },
-            "url": "{{baseUrl}}/v1/users/me"
+            "url": "{{baseUrl}}/driver/me"
           }
         },
         {
-          "name": "Upload Profile Photo",
+          "name": "Go online",
           "request": {
             "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"online\": true\n}" },
+            "url": "{{baseUrl}}/driver/availability",
+            "description": "Requires ACTIVE + KYC VERIFIED (admin must approve KYC first)."
+          }
+        },
+        {
+          "name": "Go offline",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"online\": false\n}" },
+            "url": "{{baseUrl}}/driver/availability"
+          }
+        },
+        {
+          "name": "Update location",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
-              "mode": "formdata",
-              "formdata": [
-                {
-                  "key": "file",
-                  "type": "file",
-                  "src": ""
-                }
-              ]
+              "mode": "raw",
+              "raw": "{\n  \"lat\": 25.5941,\n  \"lng\": 85.1376,\n  \"accuracy\": 10,\n  \"heading\": 90,\n  \"speed\": 10\n}"
             },
-            "url": "{{baseUrl}}/v1/users/me/photo"
+            "url": "{{baseUrl}}/driver/location"
           }
         }
       ]
     },
     {
-      "name": "Driver",
+      "name": "Rides",
       "item": [
         {
-          "name": "Get Driver Profile",
+          "name": "Open requests",
+          "request": { "method": "GET", "url": "{{baseUrl}}/driver/rides/requests" }
+        },
+        {
+          "name": "Active ride",
+          "request": { "method": "GET", "url": "{{baseUrl}}/driver/rides/active" }
+        },
+        {
+          "name": "History",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/v1/drivers/me",
-            "description": "Requires ROLE_DRIVER and an existing driver profile."
+            "url": "{{baseUrl}}/driver/rides/history?page=0&size=20"
           }
         },
         {
-          "name": "Update Location",
+          "name": "Get ride",
+          "request": { "method": "GET", "url": "{{baseUrl}}/driver/rides/{{rideId}}" }
+        },
+        {
+          "name": "Accept",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  const id = json.id || (json.data && json.data.id);",
+                  "  if (id) pm.collectionVariables.set('rideId', String(id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": { "method": "POST", "url": "{{baseUrl}}/driver/rides/{{rideId}}/accept" }
+        },
+        {
+          "name": "Reject",
+          "request": { "method": "POST", "url": "{{baseUrl}}/driver/rides/{{rideId}}/reject" }
+        },
+        {
+          "name": "Status GOING_TO_PICKUP",
           "request": {
-            "method": "PUT",
+            "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"latitude\": 25.5941,\n  \"longitude\": 85.1376\n}"
-            },
-            "url": "{{baseUrl}}/v1/drivers/me/location",
-            "description": "Used by matching. Keep this updated while the driver is online."
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"GOING_TO_PICKUP\"\n}" },
+            "url": "{{baseUrl}}/driver/rides/{{rideId}}/status"
           }
         },
         {
-          "name": "Go Online",
+          "name": "Status ARRIVED",
           "request": {
-            "method": "PATCH",
+            "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"online\": true\n}"
-            },
-            "url": "{{baseUrl}}/v1/drivers/me/availability"
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"ARRIVED\"\n}" },
+            "url": "{{baseUrl}}/driver/rides/{{rideId}}/status"
           }
         },
         {
-          "name": "Go Offline",
+          "name": "Start",
+          "request": { "method": "POST", "url": "{{baseUrl}}/driver/rides/{{rideId}}/start" }
+        },
+        {
+          "name": "Status GOING_TO_DESTINATION",
           "request": {
-            "method": "PATCH",
+            "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"online\": false\n}"
-            },
-            "url": "{{baseUrl}}/v1/drivers/me/availability",
-            "description": "Rejected if the driver is BUSY on an active ride."
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"GOING_TO_DESTINATION\"\n}" },
+            "url": "{{baseUrl}}/driver/rides/{{rideId}}/status"
+          }
+        },
+        {
+          "name": "Complete",
+          "request": { "method": "POST", "url": "{{baseUrl}}/driver/rides/{{rideId}}/complete" }
+        },
+        {
+          "name": "Cancel",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Customer not reachable\"\n}" },
+            "url": "{{baseUrl}}/driver/rides/{{rideId}}/cancel"
           }
         }
       ]
     },
     {
-      "name": "Assigned Ride",
+      "name": "Earnings",
       "item": [
         {
-          "name": "Ride History",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/v1/rides/history?page=0&size=20&sort=createdAt,desc",
-              "host": ["{{baseUrl}}"],
-              "path": ["v1", "rides", "history"],
-              "query": [
-                { "key": "page", "value": "0" },
-                { "key": "size", "value": "20" },
-                { "key": "status", "value": "DRIVER_ASSIGNED", "disabled": true },
-                { "key": "sort", "value": "createdAt,desc" }
-              ]
-            },
-            "description": "For drivers this returns rides assigned to them."
-          }
-        },
-        {
-          "name": "Get Ride",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/v1/rides/{{rideId}}",
-            "description": "Driver can only access rides assigned to them."
-          }
-        },
-        {
-          "name": "En Route (Arriving)",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/v1/rides/{{rideId}}/enroute",
-            "description": "DRIVER_ASSIGNED → DRIVER_ARRIVING"
-          }
-        },
-        {
-          "name": "Arrived",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/v1/rides/{{rideId}}/arrive",
-            "description": "DRIVER_ARRIVING → DRIVER_ARRIVED"
-          }
-        },
-        {
-          "name": "Start Ride",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/v1/rides/{{rideId}}/start",
-            "description": "DRIVER_ARRIVED → RIDE_STARTED"
-          }
-        },
-        {
-          "name": "Complete Ride",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/v1/rides/{{rideId}}/complete",
-            "description": "RIDE_STARTED → RIDE_COMPLETED. Sets finalFare from the server estimate."
-          }
-        },
-        {
-          "name": "Cancel Ride",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"reason\": \"Customer not reachable\"\n}"
-            },
-            "url": "{{baseUrl}}/v1/rides/{{rideId}}/cancel",
-            "description": "Only from cancellable statuses. Not allowed after the trip has started."
-          }
+          "name": "GET earnings",
+          "request": { "method": "GET", "url": "{{baseUrl}}/driver/earnings" }
         }
       ]
     }

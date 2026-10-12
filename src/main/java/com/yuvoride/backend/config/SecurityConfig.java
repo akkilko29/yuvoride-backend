@@ -28,6 +28,10 @@ public class SecurityConfig {
             "/v1/auth/google",
             "/v1/auth/refresh",
             "/v1/auth/logout",
+            "/auth/driver/**",
+            "/auth/refresh",
+            "/auth/logout",
+            "/ws/**",
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-ui.html"
@@ -57,7 +61,8 @@ public class SecurityConfig {
                         .requestMatchers(PUBLIC).permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/vehicles").permitAll()
                         .requestMatchers(HttpMethod.GET, "/files/**").permitAll()
-                        .requestMatchers("/v1/drivers/**").hasRole("DRIVER")
+                        .requestMatchers("/v1/drivers/**", "/driver/**").hasRole("DRIVER")
+                        .requestMatchers("/v1/admin/**").hasRole("ADMIN")
                         .requestMatchers("/v1/users/**", "/v1/rides/**").authenticated()
                         .anyRequest().authenticated()
                 )

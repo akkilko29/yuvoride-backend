@@ -13,24 +13,25 @@ class RideStateMachineTest {
 
     @Test
     void allowsHappyPathTransitions() {
-        machine.assertTransition(RideStatus.REQUESTED, RideStatus.SEARCHING_DRIVER);
-        machine.assertTransition(RideStatus.SEARCHING_DRIVER, RideStatus.DRIVER_ASSIGNED);
-        machine.assertTransition(RideStatus.DRIVER_ASSIGNED, RideStatus.DRIVER_ARRIVING);
-        machine.assertTransition(RideStatus.DRIVER_ARRIVING, RideStatus.DRIVER_ARRIVED);
-        machine.assertTransition(RideStatus.DRIVER_ARRIVED, RideStatus.RIDE_STARTED);
-        machine.assertTransition(RideStatus.RIDE_STARTED, RideStatus.RIDE_COMPLETED);
+        machine.assertTransition(RideStatus.REQUESTED, RideStatus.ACCEPTED);
+        machine.assertTransition(RideStatus.ACCEPTED, RideStatus.GOING_TO_PICKUP);
+        machine.assertTransition(RideStatus.GOING_TO_PICKUP, RideStatus.ARRIVED);
+        machine.assertTransition(RideStatus.ARRIVED, RideStatus.RIDE_STARTED);
+        machine.assertTransition(RideStatus.RIDE_STARTED, RideStatus.GOING_TO_DESTINATION);
+        machine.assertTransition(RideStatus.GOING_TO_DESTINATION, RideStatus.COMPLETED);
     }
 
     @Test
     void rejectsInvalidTransition() {
-        assertThatThrownBy(() -> machine.assertTransition(RideStatus.RIDE_COMPLETED, RideStatus.CANCELLED))
+        assertThatThrownBy(() -> machine.assertTransition(RideStatus.COMPLETED, RideStatus.RIDE_CANCELLED))
                 .isInstanceOf(RideStateException.class);
     }
 
     @Test
     void cancellationRules() {
+        assertThat(machine.canCancel(RideStatus.REQUESTED)).isTrue();
         assertThat(machine.canCancel(RideStatus.SEARCHING_DRIVER)).isTrue();
         assertThat(machine.canCancel(RideStatus.RIDE_STARTED)).isFalse();
-        assertThat(machine.canCancel(RideStatus.RIDE_COMPLETED)).isFalse();
+        assertThat(machine.canCancel(RideStatus.COMPLETED)).isFalse();
     }
 }

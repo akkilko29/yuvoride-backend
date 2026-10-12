@@ -73,7 +73,7 @@ class ApiIntegrationTest {
                         .content("{\"phone\":\"+919999999999\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data").isEmpty());
+                .andExpect(jsonPath("$.message").value("OTP sent successfully"));
 
         mockMvc.perform(post("/v1/auth/otp/verify")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -165,14 +165,14 @@ class ApiIntegrationTest {
                 .getContentAsString();
         JsonNode created = jsonMapper.readTree(createJson);
         long rideId = created.path("data").path("id").asLong();
-        assertThat(created.path("data").path("status").asText()).isIn("NO_DRIVER_FOUND", "SEARCHING_DRIVER", "DRIVER_ASSIGNED");
+        assertThat(created.path("data").path("status").asText()).isEqualTo("REQUESTED");
 
         mockMvc.perform(post("/v1/rides/" + rideId + "/cancel")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"reason\":\"Changed my plan\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.status").value("CANCELLED"));
+                .andExpect(jsonPath("$.data.status").value("RIDE_CANCELLED"));
     }
 
     @Test

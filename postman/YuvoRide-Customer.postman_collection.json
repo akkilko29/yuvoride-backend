@@ -294,8 +294,47 @@
               "raw": "{\n  \"reason\": \"Changed my plan\"\n}"
             },
             "url": "{{baseUrl}}/v1/rides/{{rideId}}/cancel",
-            "description": "Allowed only from cancellable statuses (not after RIDE_STARTED or RIDE_COMPLETED)."
+            "description": "Sets status to RIDE_CANCELLED. Allowed only before RIDE_STARTED / RIDE_COMPLETED."
           }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "List drivers",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/admin/drivers" }
+        },
+        {
+          "name": "Get driver",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/admin/drivers/1" }
+        },
+        {
+          "name": "Approve KYC",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"VERIFIED\"\n}" },
+            "url": "{{baseUrl}}/v1/admin/drivers/1/kyc"
+          }
+        },
+        {
+          "name": "Set driver ACTIVE",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"ACTIVE\"\n}" },
+            "url": "{{baseUrl}}/v1/admin/drivers/1/status"
+          }
+        },
+        {
+          "name": "List users",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/admin/users?page=0&size=20" }
+        },
+        {
+          "name": "List rides",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/admin/rides?page=0&size=20" }
         }
       ]
     }

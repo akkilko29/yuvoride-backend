@@ -10,6 +10,8 @@ import java.math.BigDecimal;
 public class RideEstimateResponse {
     private final Double distanceKm;
     private final Integer durationMinutes;
+    private final Long distanceMeters;
+    private final Integer durationSeconds;
     private final BigDecimal estimatedFare;
     private final String vehicleType;
     private final String currency;

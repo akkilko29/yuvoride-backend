@@ -52,7 +52,7 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public UserResponse updateProfilePhoto(Long userId, MultipartFile file) {
         User user = getUser(userId);
-        String path = fileStorageService.store(file, "users/" + userId);
+        String path = fileStorageService.store(file, "public/users/" + userId);
         user.setProfilePhoto(path);
         return userMapper.toResponse(userRepository.save(user));
     }

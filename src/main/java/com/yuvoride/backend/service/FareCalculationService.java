@@ -5,5 +5,11 @@ import com.yuvoride.backend.entity.VehicleType;
 import java.math.BigDecimal;
 
 public interface FareCalculationService {
+
     BigDecimal calculate(VehicleType vehicleType, double distanceKm, int durationMinutes);
+
+    FareQuote quote(VehicleType vehicleType, double distanceKm, int durationMinutes);
+
+    record FareQuote(BigDecimal estimatedFare, BigDecimal commission, BigDecimal driverEarning) {
+    }
 }

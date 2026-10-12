@@ -51,15 +51,17 @@ public class GoogleRouteService implements RouteService {
                 log.warn("Google Directions API status={}", status);
                 throw new ServiceUnavailableException("Routing service is currently unavailable");
             }
-            JsonNode leg = body.path("routes").path(0).path("legs").path(0);
+            JsonNode route = body.path("routes").path(0);
+            JsonNode leg = route.path("legs").path(0);
             double meters = leg.path("distance").path("value").asDouble();
             int seconds = leg.path("duration").path("value").asInt();
             if (meters <= 0) {
                 throw new BadRequestException("No route found between the given locations");
             }
+            String polyline = route.path("overview_polyline").path("points").asText(null);
             double distanceKm = Math.round((meters / 1000.0) * 10.0) / 10.0;
             int durationMinutes = (int) Math.ceil(seconds / 60.0);
-            return new RouteResult(distanceKm, Math.max(durationMinutes, 1));
+            return new RouteResult(distanceKm, Math.max(durationMinutes, 1), Math.round(meters), seconds, polyline);
         } catch (BadRequestException | ServiceUnavailableException ex) {
             throw ex;
         } catch (RestClientException ex) {

@@ -2,6 +2,7 @@ package com.yuvoride.backend.service;
 
 import com.yuvoride.backend.dto.auth.AuthResponse;
 import com.yuvoride.backend.dto.auth.TokenResponse;
+import com.yuvoride.backend.entity.User;
 
 public interface AuthService {
     void sendOtp(String phone);
@@ -10,4 +11,6 @@ public interface AuthService {
     AuthResponse googleLogin(String idToken);
     TokenResponse refresh(String refreshToken);
     void logout(Long userId, String refreshToken);
+
+    AuthResponse issueSession(User user);
 }

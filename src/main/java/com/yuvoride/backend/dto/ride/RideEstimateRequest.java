@@ -2,6 +2,7 @@ package com.yuvoride.backend.dto.ride;
 
 import com.yuvoride.backend.dto.common.LocationDto;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
@@ -18,6 +19,11 @@ public class RideEstimateRequest {
     @Valid
     private LocationDto destination;
 
-    @NotNull(message = "Vehicle type is required")
     private Long vehicleTypeId;
+    private String vehicleType;
+
+    @AssertTrue(message = "Vehicle type is required")
+    public boolean isVehicleSpecified() {
+        return vehicleTypeId != null || (vehicleType != null && !vehicleType.isBlank());
+    }
 }

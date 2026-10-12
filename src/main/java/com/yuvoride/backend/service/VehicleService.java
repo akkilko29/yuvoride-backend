@@ -8,4 +8,6 @@ import java.util.List;
 public interface VehicleService {
     List<VehicleTypeResponse> listActive();
     VehicleType getActive(Long id);
+
+    VehicleType resolveActive(Long id, String name);
 }

@@ -33,4 +33,18 @@ public class VehicleServiceImpl implements VehicleService {
         return vehicleTypeRepository.findByIdAndActiveTrue(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Vehicle type not found"));
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public VehicleType resolveActive(Long id, String name) {
+        if (id != null) {
+            return getActive(id);
+        }
+        if (name == null || name.isBlank()) {
+            throw new ResourceNotFoundException("Vehicle type not found");
+        }
+        return vehicleTypeRepository.findByNameIgnoreCase(name.trim())
+                .filter(VehicleType::isActive)
+                .orElseThrow(() -> new ResourceNotFoundException("Vehicle type not found"));
+    }
 }

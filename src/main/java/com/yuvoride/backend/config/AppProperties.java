@@ -59,5 +59,7 @@ public class AppProperties {
     @Setter
     public static class DriverMatch {
         private double radiusKm = 10;
+        private int requestTtlSeconds = 120;
+        private int locationMaxAgeSeconds = 300;
     }
 }

@@ -38,6 +38,7 @@ public class DataSeeder implements CommandLineRunner {
                 .perKmRate(new BigDecimal(perKm))
                 .perMinuteRate(new BigDecimal(perMinute))
                 .minimumFare(new BigDecimal(minimum))
+                .commissionPercent(new BigDecimal("20"))
                 .active(true)
                 .build();
         vehicleTypeRepository.save(type);

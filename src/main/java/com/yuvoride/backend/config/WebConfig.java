@@ -18,7 +18,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         Path uploadPath = Path.of(properties.getStorage().getLocalDir()).toAbsolutePath().normalize();
-        registry.addResourceHandler("/files/**")
-                .addResourceLocations(uploadPath.toUri().toString());
+        registry.addResourceHandler("/files/public/**")
+                .addResourceLocations(uploadPath.resolve("public").toUri().toString());
     }
 }

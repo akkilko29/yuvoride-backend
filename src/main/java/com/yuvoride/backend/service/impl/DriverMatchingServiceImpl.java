@@ -3,17 +3,16 @@ package com.yuvoride.backend.service.impl;
 import com.yuvoride.backend.config.AppProperties;
 import com.yuvoride.backend.entity.Driver;
 import com.yuvoride.backend.entity.Ride;
-import com.yuvoride.backend.enums.DriverStatus;
-import com.yuvoride.backend.enums.RideStatus;
 import com.yuvoride.backend.repository.DriverRepository;
 import com.yuvoride.backend.service.DriverMatchingService;
-import com.yuvoride.backend.service.RideStateMachine;
+import com.yuvoride.backend.service.NotificationService;
 import com.yuvoride.backend.util.GeoUtils;
+import com.yuvoride.backend.websocket.RealtimePublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 
@@ -23,39 +22,31 @@ import java.util.List;
 public class DriverMatchingServiceImpl implements DriverMatchingService {
 
     private final DriverRepository driverRepository;
-    private final RideStateMachine rideStateMachine;
     private final AppProperties properties;
+    private final RealtimePublisher realtimePublisher;
+    private final NotificationService notificationService;
 
     @Override
-    @Transactional
-    public void assignDriver(Ride ride) {
-        rideStateMachine.assertTransition(ride.getStatus(), RideStatus.SEARCHING_DRIVER);
-        ride.setStatus(RideStatus.SEARCHING_DRIVER);
-
-        List<Driver> candidates = driverRepository.findAvailableForVehicleType(ride.getVehicleType().getId());
+    public List<Driver> findEligibleDrivers(Ride ride) {
         double radius = properties.getDriverMatch().getRadiusKm();
-        Driver selected = candidates.stream()
+        int maxAge = properties.getDriverMatch().getLocationMaxAgeSeconds();
+        Instant minLocationAt = Instant.now().minusSeconds(maxAge);
+        return driverRepository.findEligibleForVehicleType(ride.getVehicleType().getId()).stream()
+                .filter(driver -> driver.getLastLocationAt() == null || !driver.getLastLocationAt().isBefore(minLocationAt))
                 .filter(driver -> GeoUtils.haversineKm(
                         ride.getPickupLatitude(), ride.getPickupLongitude(),
                         driver.getCurrentLatitude(), driver.getCurrentLongitude()) <= radius)
-                .min(Comparator.comparingDouble(driver -> GeoUtils.haversineKm(
+                .sorted(Comparator.comparingDouble(driver -> GeoUtils.haversineKm(
                         ride.getPickupLatitude(), ride.getPickupLongitude(),
                         driver.getCurrentLatitude(), driver.getCurrentLongitude())))
-                .orElse(null);
+                .toList();
+    }
 
-        if (selected == null) {
-            rideStateMachine.assertTransition(ride.getStatus(), RideStatus.NO_DRIVER_FOUND);
-            ride.setStatus(RideStatus.NO_DRIVER_FOUND);
-            log.info("No driver found for ride {}", ride.getId());
-            return;
-        }
-
-        rideStateMachine.assertTransition(ride.getStatus(), RideStatus.DRIVER_ASSIGNED);
-        selected.setAvailable(false);
-        selected.setStatus(DriverStatus.BUSY);
-        ride.setDriver(selected);
-        ride.setStatus(RideStatus.DRIVER_ASSIGNED);
-        driverRepository.save(selected);
-        log.info("Assigned driver {} to ride {}", selected.getId(), ride.getId());
+    @Override
+    public void offerRide(Ride ride) {
+        List<Driver> drivers = findEligibleDrivers(ride);
+        realtimePublisher.rideOfferedToDrivers(ride, drivers);
+        drivers.forEach(driver -> notificationService.notifyDriverRideRequest(driver, ride));
+        log.info("Offered ride {} to {} eligible drivers", ride.getId(), drivers.size());
     }
 }

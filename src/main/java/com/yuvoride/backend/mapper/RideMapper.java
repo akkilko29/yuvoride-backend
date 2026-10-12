@@ -19,11 +19,13 @@ public class RideMapper {
         pickup.setLatitude(ride.getPickupLatitude());
         pickup.setLongitude(ride.getPickupLongitude());
         pickup.setAddress(ride.getPickupAddress());
+        pickup.setLabel(ride.getPickupAddress());
 
         LocationDto destination = new LocationDto();
         destination.setLatitude(ride.getDestinationLatitude());
         destination.setLongitude(ride.getDestinationLongitude());
         destination.setAddress(ride.getDestinationAddress());
+        destination.setLabel(ride.getDestinationAddress());
 
         return RideResponse.builder()
                 .id(ride.getId())
@@ -35,10 +37,18 @@ public class RideMapper {
                 .vehicleTypeId(ride.getVehicleType().getId())
                 .distanceKm(ride.getDistanceKm())
                 .durationMinutes(ride.getDurationMinutes())
+                .distanceMeters(ride.getDistanceMeters())
+                .durationSeconds(ride.getDurationSeconds())
+                .etaSeconds(ride.getEtaSeconds())
                 .estimatedFare(ride.getEstimatedFare())
                 .finalFare(ride.getFinalFare())
+                .driverEarning(ride.getDriverEarning())
+                .commission(ride.getCommission())
                 .status(ride.getStatus())
                 .scheduledAt(ride.getScheduledAt())
+                .requestedAt(ride.getRequestedAt())
+                .acceptedAt(ride.getAcceptedAt())
+                .arrivedAt(ride.getArrivedAt())
                 .startedAt(ride.getStartedAt())
                 .completedAt(ride.getCompletedAt())
                 .cancelledAt(ride.getCancelledAt())

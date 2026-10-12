@@ -40,6 +40,17 @@ Tests use an in-memory H2 database (`test` profile).
 - UI: http://localhost:8080/swagger-ui.html
 - OpenAPI JSON: http://localhost:8080/v3/api-docs
 
+## Postman
+
+Import these collections separately (File → Import):
+
+- [postman/YuvoRide-Customer.postman_collection.json](postman/YuvoRide-Customer.postman_collection.json)
+- [postman/YuvoRide-Driver.postman_collection.json](postman/YuvoRide-Driver.postman_collection.json)
+
+Set `baseUrl` (default `http://localhost:8080`). After **Verify OTP**, `accessToken` and `refreshToken` are stored on the collection. After **Create Ride**, `rideId` is stored.
+
+Driver `/v1/drivers/**` endpoints require a user with role `DRIVER` and a `drivers` profile row. OTP signup creates `CUSTOMER` by default.
+
 ## Required environment variables
 
 | Variable | Purpose |

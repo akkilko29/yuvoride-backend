@@ -4,6 +4,7 @@ import com.yuvoride.backend.config.AppProperties;
 import com.yuvoride.backend.exception.BadRequestException;
 import com.yuvoride.backend.service.FileStorageService;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -51,5 +52,45 @@ public class LocalFileStorageService implements FileStorageService {
         } catch (IOException ex) {
             throw new BadRequestException("Unable to store file");
         }
+    }
+
+    @Override
+    public String storeReference(String clientUri) {
+        if (!StringUtils.hasText(clientUri)) {
+            return null;
+        }
+        String value = clientUri.trim();
+        if (value.startsWith("file:") || value.startsWith("content:") || value.startsWith("ph://")) {
+            return "unverified:" + value;
+        }
+        return value;
+    }
+
+    @Override
+    public void delete(String relativePath) {
+        if (!StringUtils.hasText(relativePath) || relativePath.startsWith("unverified:") || relativePath.startsWith("http")) {
+            return;
+        }
+        try {
+            Path root = Path.of(properties.getStorage().getLocalDir()).toAbsolutePath().normalize();
+            Path target = root.resolve(relativePath).normalize();
+            if (target.startsWith(root)) {
+                Files.deleteIfExists(target);
+            }
+        } catch (IOException ignored) {
+            // best-effort cleanup
+        }
+    }
+
+    @Override
+    public String getUrl(String relativePath) {
+        if (!StringUtils.hasText(relativePath)) {
+            return null;
+        }
+        if (relativePath.startsWith("http") || relativePath.startsWith("unverified:")) {
+            return null;
+        }
+        String base = properties.getStorage().getPublicBaseUrl();
+        return base.endsWith("/") ? base + relativePath : base + "/" + relativePath;
     }
 }

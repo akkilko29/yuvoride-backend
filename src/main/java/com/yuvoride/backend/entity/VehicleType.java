@@ -48,6 +48,9 @@ public class VehicleType extends Auditable {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal minimumFare;
 
+    @Column(precision = 5, scale = 2)
+    private BigDecimal commissionPercent;
+
     @Column(nullable = false)
     private boolean active;
 }

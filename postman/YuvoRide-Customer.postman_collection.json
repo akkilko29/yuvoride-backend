@@ -1,0 +1,303 @@
+{
+  "info": {
+    "name": "YuvoRide Customer API",
+    "description": "Customer-facing YuvoRide REST APIs. After Verify OTP or Google Login, accessToken and refreshToken are saved automatically.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "phone", "value": "+919999999999" },
+    { "key": "otp", "value": "123456" },
+    { "key": "vehicleTypeId", "value": "2" },
+    { "key": "rideId", "value": "1" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Send OTP",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{phone}}\"\n}"
+            },
+            "url": "{{baseUrl}}/v1/auth/otp/send",
+            "description": "Sends an OTP. The code is never returned in the API response. In development the mock SMS gateway logs only the last 4 digits of the phone."
+          }
+        },
+        {
+          "name": "Verify OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.data && json.data.accessToken) {",
+                  "    pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "    pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"otp\": \"{{otp}}\"\n}"
+            },
+            "url": "{{baseUrl}}/v1/auth/otp/verify",
+            "description": "Validates OTP, creates the customer on first login, and returns JWT tokens. Copy the OTP from your SMS provider or test setup; it is not in the send response."
+          }
+        },
+        {
+          "name": "Resend OTP",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{phone}}\"\n}"
+            },
+            "url": "{{baseUrl}}/v1/auth/otp/resend",
+            "description": "Resends OTP. Subject to cooldown and hourly rate limits."
+          }
+        },
+        {
+          "name": "Google Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.data && json.data.accessToken) {",
+                  "    pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "    pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"GOOGLE_ID_TOKEN\"\n}"
+            },
+            "url": "{{baseUrl}}/v1/auth/google",
+            "description": "Requires GOOGLE_CLIENT_ID. Backend validates the Google ID token; do not send email from the client."
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.data && json.data.accessToken) {",
+                  "    pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "    pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": "{{baseUrl}}/v1/auth/refresh",
+            "description": "Rotates the refresh token and issues a new access token."
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": "{{baseUrl}}/v1/auth/logout",
+            "description": "Revokes refresh tokens for the authenticated user, or the provided refresh token."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Vehicles",
+      "item": [
+        {
+          "name": "List Vehicle Types",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/vehicles",
+            "description": "Public. Returns active vehicle types and DB-backed fares. Set collection variable vehicleTypeId from the response (Mini is typically id 2 after seed)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Profile",
+      "item": [
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/users/me"
+          }
+        },
+        {
+          "name": "Update Current User",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"User Name\",\n  \"email\": \"user@example.com\"\n}"
+            },
+            "url": "{{baseUrl}}/v1/users/me",
+            "description": "Customers cannot change id, role, status, or createdAt."
+          }
+        },
+        {
+          "name": "Upload Profile Photo",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "",
+                  "description": "JPEG, PNG, or WebP, max 5MB"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/v1/users/me/photo"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Rides",
+      "item": [
+        {
+          "name": "Estimate Ride",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\n    \"latitude\": 25.5941,\n    \"longitude\": 85.1376,\n    \"address\": \"Patna\"\n  },\n  \"destination\": {\n    \"latitude\": 26.1197,\n    \"longitude\": 85.3910,\n    \"address\": \"Muzaffarpur\"\n  },\n  \"vehicleTypeId\": {{vehicleTypeId}}\n}"
+            },
+            "url": "{{baseUrl}}/v1/rides/estimate",
+            "description": "Requires authentication. Needs GOOGLE_MAPS_API_KEY. Fare is calculated on the server from vehicle_types rates."
+          }
+        },
+        {
+          "name": "Create Ride",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.data && json.data.id) {",
+                  "    pm.collectionVariables.set('rideId', String(json.data.id));",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\n    \"latitude\": 25.5941,\n    \"longitude\": 85.1376,\n    \"address\": \"Patna\"\n  },\n  \"destination\": {\n    \"latitude\": 26.1197,\n    \"longitude\": 85.3910,\n    \"address\": \"Muzaffarpur\"\n  },\n  \"vehicleTypeId\": {{vehicleTypeId}},\n  \"scheduledAt\": null\n}"
+            },
+            "url": "{{baseUrl}}/v1/rides",
+            "description": "Customer only. Distance, duration, fare, and status are set by the backend."
+          }
+        },
+        {
+          "name": "Get Ride",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/rides/{{rideId}}",
+            "description": "Customer can only load their own ride (IDOR protected)."
+          }
+        },
+        {
+          "name": "Ride History",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/rides/history?page=0&size=20&sort=createdAt,desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "rides", "history"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" },
+                { "key": "status", "value": "", "disabled": true, "description": "Optional RideStatus, e.g. RIDE_COMPLETED" },
+                { "key": "sort", "value": "createdAt,desc" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cancel Ride",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Changed my plan\"\n}"
+            },
+            "url": "{{baseUrl}}/v1/rides/{{rideId}}/cancel",
+            "description": "Allowed only from cancellable statuses (not after RIDE_STARTED or RIDE_COMPLETED)."
+          }
+        }
+      ]
+    }
+  ]
+}

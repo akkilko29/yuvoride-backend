@@ -2,12 +2,16 @@ package com.yuvoride.backend.repository;
 
 import com.yuvoride.backend.entity.Ride;
 import com.yuvoride.backend.enums.RideStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,6 +26,10 @@ public interface RideRepository extends JpaRepository<Ride, Long> {
             WHERE r.id = :id
             """)
     Optional<Ride> findDetailedById(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM Ride r WHERE r.id = :id")
+    Optional<Ride> findByIdForUpdate(@Param("id") Long id);
 
     Optional<Ride> findByIdAndCustomerId(Long id, Long customerId);
 
@@ -43,5 +51,30 @@ public interface RideRepository extends JpaRepository<Ride, Long> {
               AND r.status IN :activeStatuses
             """)
     boolean existsActiveRideForCustomer(@Param("customerId") Long customerId,
-                                        @Param("activeStatuses") List<RideStatus> activeStatuses);
+                                        @Param("activeStatuses") Collection<RideStatus> activeStatuses);
+
+    @Query("""
+            SELECT COUNT(r) > 0 FROM Ride r
+            WHERE r.driver.id = :driverId
+              AND r.status IN :activeStatuses
+            """)
+    boolean existsActiveRideForDriver(@Param("driverId") Long driverId,
+                                      @Param("activeStatuses") Collection<RideStatus> activeStatuses);
+
+    Optional<Ride> findFirstByDriverIdAndStatusInOrderByCreatedAtDesc(Long driverId, Collection<RideStatus> statuses);
+
+    @Query("""
+            SELECT r FROM Ride r
+            JOIN FETCH r.customer
+            JOIN FETCH r.vehicleType
+            WHERE r.status IN :statuses
+              AND r.vehicleType.id = :vehicleTypeId
+              AND (r.expiresAt IS NULL OR r.expiresAt > :now)
+            ORDER BY r.createdAt DESC
+            """)
+    List<Ride> findOpenRequests(@Param("vehicleTypeId") Long vehicleTypeId,
+                                @Param("statuses") Collection<RideStatus> statuses,
+                                @Param("now") Instant now);
+
+    List<Ride> findByDriverIdAndStatusAndCompletedAtGreaterThanEqual(Long driverId, RideStatus status, Instant from);
 }

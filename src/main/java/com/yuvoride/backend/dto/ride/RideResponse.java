@@ -21,10 +21,18 @@ public class RideResponse {
     private final Long vehicleTypeId;
     private final Double distanceKm;
     private final Integer durationMinutes;
+    private final Long distanceMeters;
+    private final Integer durationSeconds;
+    private final Integer etaSeconds;
     private final BigDecimal estimatedFare;
     private final BigDecimal finalFare;
+    private final BigDecimal driverEarning;
+    private final BigDecimal commission;
     private final RideStatus status;
     private final Instant scheduledAt;
+    private final Instant requestedAt;
+    private final Instant acceptedAt;
+    private final Instant arrivedAt;
     private final Instant startedAt;
     private final Instant completedAt;
     private final Instant cancelledAt;

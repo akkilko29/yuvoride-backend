@@ -101,6 +101,7 @@ public class AuthServiceImpl implements AuthService {
         String nextRefresh = persistRefreshToken(user);
         return TokenResponse.builder()
                 .accessToken(access)
+                .token(access)
                 .refreshToken(nextRefresh)
                 .build();
     }
@@ -122,6 +123,12 @@ public class AuthServiceImpl implements AuthService {
                     token.setRevokedAt(now);
                     refreshTokenRepository.save(token);
                 });
+    }
+
+    @Override
+    @Transactional
+    public AuthResponse issueSession(User user) {
+        return issueAuth(user);
     }
 
     private AuthResponse issueAuth(User user) {

@@ -33,7 +33,7 @@ public class OtpChallenge {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 255)
     private String phone;
 
     @Column(nullable = false, length = 64)

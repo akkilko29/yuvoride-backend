@@ -6,6 +6,7 @@ import com.yuvoride.backend.dto.driver.DriverResponse;
 import com.yuvoride.backend.dto.ride.RideResponse;
 import com.yuvoride.backend.dto.user.UserResponse;
 import com.yuvoride.backend.entity.Driver;
+import com.yuvoride.backend.entity.DriverKyc;
 import com.yuvoride.backend.enums.DriverAccountStatus;
 import com.yuvoride.backend.enums.DriverStatus;
 import com.yuvoride.backend.enums.KycStatus;
@@ -13,17 +14,21 @@ import com.yuvoride.backend.exception.ResourceNotFoundException;
 import com.yuvoride.backend.mapper.DriverMapper;
 import com.yuvoride.backend.mapper.RideMapper;
 import com.yuvoride.backend.mapper.UserMapper;
+import com.yuvoride.backend.repository.CustomerRepository;
+import com.yuvoride.backend.repository.DriverKycRepository;
 import com.yuvoride.backend.repository.DriverRepository;
 import com.yuvoride.backend.repository.RideRepository;
 import com.yuvoride.backend.repository.UserRepository;
 import com.yuvoride.backend.service.AdminService;
 import com.yuvoride.backend.service.NotificationService;
+import com.yuvoride.backend.service.RoleProfileService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 
 @Slf4j
@@ -32,8 +37,11 @@ import java.util.List;
 public class AdminServiceImpl implements AdminService {
 
     private final DriverRepository driverRepository;
+    private final DriverKycRepository driverKycRepository;
+    private final CustomerRepository customerRepository;
     private final UserRepository userRepository;
     private final RideRepository rideRepository;
+    private final RoleProfileService roleProfileService;
     private final DriverMapper driverMapper;
     private final UserMapper userMapper;
     private final RideMapper rideMapper;
@@ -64,6 +72,14 @@ public class AdminServiceImpl implements AdminService {
             driver.setAvailable(false);
             driver.setStatus(DriverStatus.OFFLINE);
         }
+        roleProfileService.ensureDriverKyc(driver);
+        DriverKyc kyc = driverKycRepository.findByDriverId(driver.getId()).orElse(null);
+        if (kyc != null) {
+            kyc.setStatus(request.getKycStatus());
+            kyc.setRejectionReason(request.getReason());
+            kyc.setReviewedAt(Instant.now());
+            driverKycRepository.save(kyc);
+        }
         driverRepository.save(driver);
         notificationService.notifyKycStatusChanged(driver);
         log.info("Admin set driver {} KYC to {}", id, request.getKycStatus());
@@ -90,6 +106,12 @@ public class AdminServiceImpl implements AdminService {
     @Transactional(readOnly = true)
     public List<UserResponse> listUsers(Pageable pageable) {
         return userRepository.findAll(pageable).map(userMapper::toResponse).getContent();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UserResponse> listCustomers(Pageable pageable) {
+        return customerRepository.findAll(pageable).map(customer -> userMapper.toResponse(customer.getUser())).getContent();
     }
 
     @Override

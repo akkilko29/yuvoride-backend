@@ -5,9 +5,11 @@ import com.yuvoride.backend.dto.common.PagedResponse;
 import com.yuvoride.backend.dto.driver.DriverLocationRequest;
 import com.yuvoride.backend.dto.driver.DriverResponse;
 import com.yuvoride.backend.dto.driver.EarningsResponse;
+import com.yuvoride.backend.dto.driver.KycResponse;
 import com.yuvoride.backend.dto.driver.PatchDriverRequest;
 import com.yuvoride.backend.dto.driver.RideStatusUpdateRequest;
 import com.yuvoride.backend.dto.driver.UpdateDriverAvailabilityRequest;
+import com.yuvoride.backend.dto.driver.UpdateKycRequest;
 import com.yuvoride.backend.dto.ride.CancelRideRequest;
 import com.yuvoride.backend.dto.ride.RideResponse;
 import com.yuvoride.backend.security.CurrentUser;
@@ -23,6 +25,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -75,6 +78,26 @@ public class DriverAppController {
     public ResponseEntity<DriverResponse> location(@CurrentUser UserPrincipal principal,
                                                    @Valid @RequestBody DriverLocationRequest request) {
         return ResponseEntity.ok(driverService.updateLocation(principal.getId(), request));
+    }
+
+    @GetMapping("/kyc")
+    @Operation(summary = "Get driver KYC submission")
+    public ResponseEntity<KycResponse> getKyc(@CurrentUser UserPrincipal principal) {
+        return ResponseEntity.ok(driverService.getKyc(principal.getId()));
+    }
+
+    @PatchMapping("/kyc")
+    @Operation(summary = "Update / resubmit driver KYC")
+    public ResponseEntity<KycResponse> patchKyc(@CurrentUser UserPrincipal principal,
+                                                @RequestBody UpdateKycRequest request) {
+        return ResponseEntity.ok(driverService.updateKyc(principal.getId(), request));
+    }
+
+    @PutMapping("/kyc")
+    @Operation(summary = "Update / resubmit driver KYC")
+    public ResponseEntity<KycResponse> putKyc(@CurrentUser UserPrincipal principal,
+                                              @RequestBody UpdateKycRequest request) {
+        return ResponseEntity.ok(driverService.updateKyc(principal.getId(), request));
     }
 
     @GetMapping("/rides/requests")

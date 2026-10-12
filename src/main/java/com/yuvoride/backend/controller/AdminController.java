@@ -63,6 +63,13 @@ public class AdminController {
                 adminService.listUsers(PageRequest.of(page, Math.min(size, 50)))));
     }
 
+    @GetMapping("/customers")
+    public ResponseEntity<ApiResponse<List<UserResponse>>> customers(@RequestParam(defaultValue = "0") int page,
+                                                                     @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok("Customers loaded",
+                adminService.listCustomers(PageRequest.of(page, Math.min(size, 50)))));
+    }
+
     @GetMapping("/rides")
     public ResponseEntity<ApiResponse<List<RideResponse>>> rides(@RequestParam(defaultValue = "0") int page,
                                                                  @RequestParam(defaultValue = "20") int size) {

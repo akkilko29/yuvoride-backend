@@ -16,6 +16,7 @@ import com.yuvoride.backend.security.JwtService;
 import com.yuvoride.backend.service.AuthService;
 import com.yuvoride.backend.service.GoogleTokenVerifier;
 import com.yuvoride.backend.service.OtpService;
+import com.yuvoride.backend.service.RoleProfileService;
 import com.yuvoride.backend.util.HashUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +39,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserMapper userMapper;
     private final AppProperties properties;
     private final GoogleTokenVerifier googleTokenVerifier;
+    private final RoleProfileService roleProfileService;
 
     @Override
     public void sendOtp(String phone) {
@@ -55,6 +57,7 @@ public class AuthServiceImpl implements AuthService {
         otpService.verifyOrThrow(phone, otp);
         User user = userRepository.findByPhone(phone).orElseGet(() -> createOtpUser(phone));
         assertActive(user);
+        roleProfileService.ensure(user);
         return issueAuth(user);
     }
 
@@ -76,6 +79,7 @@ public class AuthServiceImpl implements AuthService {
         }
         userRepository.save(user);
         assertActive(user);
+        roleProfileService.ensure(user);
         return issueAuth(user);
     }
 

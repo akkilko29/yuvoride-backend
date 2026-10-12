@@ -15,5 +15,6 @@ public interface AdminService {
     DriverResponse updateKyc(Long id, AdminKycRequest request);
     DriverResponse updateStatus(Long id, AdminDriverStatusRequest request);
     List<UserResponse> listUsers(Pageable pageable);
+    List<UserResponse> listCustomers(Pageable pageable);
     List<RideResponse> listRides(Pageable pageable);
 }

@@ -152,6 +152,22 @@
       "name": "Users",
       "item": [
         {
+          "name": "List customers",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/admin/customers?page=0&size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "admin", "customers"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            },
+            "description": "Reads the customers table (not the shared users login table)."
+          }
+        },
+        {
           "name": "List users",
           "request": {
             "method": "GET",

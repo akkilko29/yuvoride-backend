@@ -194,6 +194,35 @@
           }
         },
         {
+          "name": "GET KYC",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/driver/kyc",
+              "host": ["{{baseUrl}}"],
+              "path": ["driver", "kyc"]
+            },
+            "description": "Reads driver_kyc. Driver cannot self-verify."
+          }
+        },
+        {
+          "name": "PATCH KYC (resubmit)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ravi Kumar\",\n  \"dob\": \"1995-01-15\",\n  \"phone\": \"{{phone}}\",\n  \"address\": \"Patna, Bihar\",\n  \"photoUri\": \"content://photo\",\n  \"identityType\": \"AADHAAR\",\n  \"identityNumber\": \"XXXX-XXXX-1234\",\n  \"identityUri\": \"content://id\",\n  \"vehicleType\": \"Sedan\",\n  \"vehicleNumber\": \"BR01AB1234\",\n  \"rcNumber\": \"RC123\",\n  \"rcUri\": \"content://rc\",\n  \"licenseNumber\": \"DL123456\",\n  \"licenseUri\": \"content://license\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/driver/kyc",
+              "host": ["{{baseUrl}}"],
+              "path": ["driver", "kyc"]
+            },
+            "description": "Writes driver_kyc and resets status to PENDING. Admin must VERIFIED before go-online."
+          }
+        },
+        {
           "name": "Go online",
           "request": {
             "method": "POST",

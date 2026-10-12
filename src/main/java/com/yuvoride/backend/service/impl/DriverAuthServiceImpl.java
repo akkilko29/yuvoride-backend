@@ -25,6 +25,7 @@ import com.yuvoride.backend.service.AuthService;
 import com.yuvoride.backend.service.DriverAuthService;
 import com.yuvoride.backend.service.FileStorageService;
 import com.yuvoride.backend.service.OtpService;
+import com.yuvoride.backend.service.RoleProfileService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -46,6 +47,7 @@ public class DriverAuthServiceImpl implements DriverAuthService {
     private final OtpService otpService;
     private final AuthService authService;
     private final FileStorageService fileStorageService;
+    private final RoleProfileService roleProfileService;
 
     @Override
     public void login(String email) {
@@ -73,6 +75,7 @@ public class DriverAuthServiceImpl implements DriverAuthService {
         }
         AuthResponse session = authService.issueSession(user);
         Driver driver = driverRepository.findByUserId(user.getId()).orElse(null);
+        roleProfileService.ensure(user);
         boolean profileComplete = driver != null
                 && StringUtils.hasText(driver.getLicenseNumber())
                 && StringUtils.hasText(driver.getVehicleNumber());
@@ -139,7 +142,8 @@ public class DriverAuthServiceImpl implements DriverAuthService {
                 .totalRides(0)
                 .build();
         driverRepository.save(driver);
-        log.info("Driver registered userId={}", user.getId());
+        roleProfileService.ensureDriverKyc(driver);
+        log.info("Driver registered userId={} driverId={}", user.getId(), driver.getId());
     }
 
     @Override
